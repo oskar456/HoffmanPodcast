@@ -1,6 +1,8 @@
 Tento skript vytvoří z RSS proudu Hoffmanova deníku (http://www.denik.cz/hoffmanuv_denik/)
 plnohodnotný podcastové RSS, včetně úplného textového obsahu.
 
+Požadovaný software: Python 3.1+, httplib2-0.6.0
+
 Licence skriptu: GNU GPL 2.0
 
 Poznámka: Vygenerovaný podcast je možné legálně užívat pouze pro osobní potřebu. Jakékoli
