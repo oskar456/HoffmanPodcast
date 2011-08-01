@@ -40,7 +40,7 @@ for item in rsstree.getiterator('item'):
 	playlisturl = m.group(1)
 	response, content = h.request(playlisturl)
 	assert response.status == 200
-	m = re.search('media_url="(http://[^"]+)"', content.decode('utf-8'))
+	m = re.search('media_url="(http://[^"]+mp3)"', content.decode('utf-8'))
 	assert m.lastindex == 1
 	mp3url = m.group(1)
 	
