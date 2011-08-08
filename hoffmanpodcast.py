@@ -3,10 +3,13 @@
 
 
 rssaddr = 'http://www.denik.cz/rss/hoffmanuv_denik.html'
-outfile = './hoffmanpodcast.xml'
+
+import os, sys
+current_path = os.path.dirname(sys.argv[0])
+outfile = os.path.join(current_path, 'hoffmanpodcast.xml')
 
 import httplib2
-import sys, io, re
+import io, re
 try:
 	from lxml import etree
 except ImportError:
