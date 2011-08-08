@@ -12,6 +12,11 @@ try:
 except ImportError:
 	import xml.etree.ElementTree as etree
 
+
+import translitfilter
+if sys.stdout.encoding != 'UTF-8':
+	sys.stdout = translitfilter.TranslitFilter(sys.stdout)
+
 #httplib2.debuglevel=4
 headers = { 'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:5.0) Gecko/20100101 Firefox/5.0' }
 h = httplib2.Http()
