@@ -14,7 +14,7 @@ except ImportError:
 
 #httplib2.debuglevel=4
 headers = { 'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:5.0) Gecko/20100101 Firefox/5.0' }
-h = httplib2.Http('.cache')
+h = httplib2.Http()
 response, content = h.request(rssaddr)
 assert response.status == 200
 #Make sure no double-XML document is returned (Server is buggy)
