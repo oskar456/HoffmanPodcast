@@ -21,7 +21,6 @@ if sys.stdout.encoding != 'UTF-8':
 	sys.stdout = translitfilter.TranslitFilter(sys.stdout)
 
 #httplib2.debuglevel=4
-headers = { 'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:5.0) Gecko/20100101 Firefox/5.0' }
 h = httplib2.Http()
 response, content = h.request(rssaddr)
 assert response.status == 200
@@ -40,7 +39,7 @@ for item in rsstree.getiterator('item'):
 
 		cont = content.decode('utf-8').partition('<!--FULLTEXTSTART-->')[2].partition('<!--FULLTEXTSTOP-->')[0]
 		m = re.search(r'<div[^>]*>(.*)</div>', cont, re.S)
-		if m.lastindex != 1:
+		if m is None or m.lastindex != 1:
 			raise ValueError('Nenalezen hlavni obsah.');
 
 		cont = m.group(1)
@@ -49,7 +48,7 @@ for item in rsstree.getiterator('item'):
 
 
 		m = re.search('"dataPath","(http://[^"]*)"', content.decode('utf-8'))
-		if m.lastindex != 1:
+		if m is None or m.lastindex != 1:
 			raise ValueError('Nenalezen datapath v HTML strance');
 		playlisturl = m.group(1)
 		response, content = h.request(playlisturl)
@@ -60,7 +59,7 @@ for item in rsstree.getiterator('item'):
 			raise ValueError('Nenalezen MP3 soubor v playlistu.');
 		mp3url = m.group(1)
 		
-		response, content = h.request(mp3url, 'HEAD', headers=headers)
+		response, content = h.request(mp3url, 'HEAD')
 		if response.status != 200:
 			raise ValueError('Nelze zjistit info o MP3 souboru, status {}'.format(response.status));
 		if response['content-type'] != 'audio/mpeg':
