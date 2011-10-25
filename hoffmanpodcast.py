@@ -25,9 +25,9 @@ h = httplib2.Http()
 response, content = h.request(rssaddr)
 assert response.status == 200
 #Make sure no double-XML document is returned (Server is buggy)
-first, end, last = content.decode('utf-8').partition('</rss>')
-content = '{}{}'.format(first, end)
-rsstree = etree.parse(io.StringIO(content))
+first, end, last = content.partition(b'</rss>')
+content = b''.join((first, end))
+rsstree = etree.parse(io.BytesIO(content))
 
 rsstree.find('channel/title').text = 'Hoffmanův Podcast'
 for item in rsstree.getiterator('item'):
@@ -71,5 +71,5 @@ for item in rsstree.getiterator('item'):
 		print("Datum publikace: {}\n".format(item.find('pubDate').text));
 
 #etree.dump(rsstree)
-rsstree.write(outfile, 'utf-8')
+rsstree.write(outfile, encoding='utf-8')
 
