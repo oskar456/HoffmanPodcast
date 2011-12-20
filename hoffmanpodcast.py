@@ -55,7 +55,7 @@ for item in rsstree.getiterator('item'):
 		if response.status != 200:
 			raise ValueError('Nemohu nacist playlist, status {}.'.format(response.status));
 		m = re.search('media_url="(http://[^"]+mp3)"', content.decode('utf-8'))
-		if m.lastindex != 1:
+		if m is None or m.lastindex != 1:
 			raise ValueError('Nenalezen MP3 soubor v playlistu.');
 		mp3url = m.group(1)
 		
