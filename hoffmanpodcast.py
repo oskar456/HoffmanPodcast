@@ -82,5 +82,5 @@ for item in rsstree.getiterator('item'):
 		print("Datum publikace: {}\n".format(item.find('pubDate').text))
 
 #etree.dump(rsstree)
-rsstree.write(outfile, encoding='utf-8')
+rsstree.write(outfile, encoding='utf-8', xml_declaration=True)
 
