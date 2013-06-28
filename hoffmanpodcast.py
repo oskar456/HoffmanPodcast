@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
-rssaddr = 'http://www.denik.cz/rss/hoffmanuv_denik.html'
-
-import os, sys
-current_path = os.path.dirname(sys.argv[0])
-outfile = os.path.join(current_path, 'hoffmanpodcast.xml')
-
+import os
+import sys
 import httplib2
-from urllib.parse import urljoin
+import urllib.parse
 import io
 import re
 try:
 	from lxml import etree
 except ImportError:
 	import xml.etree.ElementTree as etree
-
 import translitfilter
+import subprocess
 if sys.stdout.encoding != 'UTF-8':
 	sys.stdout = translitfilter.TranslitFilter(sys.stdout)
 
+
+rssaddr = 'http://www.denik.cz/rss/hoffmanuv_denik.html'
+current_path = os.path.dirname(sys.argv[0])
+outfile = os.path.join(current_path, 'hoffmanpodcast.xml')
+mp3path = os.path.join(current_path, 'audio')
+mp3urlpath = "audio/"
+
 #httplib2.debuglevel=4
-h = httplib2.Http()
+h = httplib2.Http('.cache')
 response, content = h.request(rssaddr)
 assert response.status == 200
 #Make sure no double-XML document is returned (Server is buggy)
@@ -52,21 +54,29 @@ for item in rsstree.getiterator('item'):
 		if m is None or m.lastindex != 1:
 			raise ValueError('Nenalezen odkaz na galerii v HTML strance')
 		playlisturl = m.group(1)
-		response, content = h.request(urljoin(link.text, playlisturl))
+		response, content = h.request(urllib.parse.urljoin(link.text, playlisturl))
 		if response.status != 200:
 			raise ValueError('Nemohu nacist stranku s galerii, status {}.'.format(response.status))
 		m = re.search('url: "(http:[^"]+mp3)"', content.decode('utf-8'))
 		if m is None or m.lastindex != 1:
 			raise ValueError('Nenalezen MP3 soubor v galerii.')
 		mp3url = m.group(1).translate({ord("\\"):None})
+		mp3base = os.path.basename(urllib.parse.urlsplit(mp3url).path)
+		mp3fspath = os.path.join(mp3path, mp3base)
 		
-		response, content = h.request(mp3url, 'HEAD')
-		if response.status != 200:
-			raise ValueError('Nelze zjistit info o MP3 souboru, status {}'.format(response.status))
-		if response['content-type'] != 'audio/mpeg':
-			raise ValueError('MP3 soubor neni typu audio/mpeg.')
-		mp3len = response['content-length']
-		etree.SubElement(item, 'enclosure', {'url': mp3url, 'type':'audio/mpeg', 'length':mp3len})
+		if not os.path.exists(mp3fspath):
+			response, content = h.request(mp3url)
+			if response.status != 200:
+				raise ValueError('Nelze ziskat MP3 soubor {}, status {}'.format(mp3url, response.status))
+			if response['content-type'] != 'audio/mpeg':
+				raise ValueError('MP3 soubor neni typu audio/mpeg.')
+			with open(mp3fspath, "wb") as mp3_f:
+				mp3_f.write(content)
+			subprocess.check_call(["normalize-mp3", "--mp3decode=lame --decode %m %w",
+			                       "--mp3encode=lame %w %m", mp3fspath])
+
+		mp3len = str(os.path.getsize(mp3fspath))
+		etree.SubElement(item, 'enclosure', {'url': urllib.parse.urljoin(mp3urlpath, mp3url), 'type':'audio/mpeg', 'length':mp3len})
 	except ValueError as e:
 		print("Chyba: {}\nV zapisku: {}".format(e, item.find('title').text))
 		print("Datum publikace: {}\n".format(item.find('pubDate').text))
