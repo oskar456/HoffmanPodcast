@@ -39,16 +39,7 @@ for item in rsstree.getiterator('item'):
 		response, content = h.request(link.text)
 		if response.status != 200:
 			raise ValueError('Nemohu najit odkazovany clanek, status {}.'.format(response.status))
-
 		cont = content.decode('utf-8').partition('<p class="clanek-perex">')[2].partition('<p class="clanek-autor">')[0]
-		m = re.search(r'</div>(([^<]|<p|</p)*)', cont, re.S)
-		if m is None or m.lastindex != 1:
-			raise ValueError('Nenalezen hlavni obsah.')
-
-		cont = m.group(1)
-		celem = etree.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
-		celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, cont)
-
 
 		m = re.search('<a href="(/galerie/[^"]*\.html\?mm=[0-9]+)">', content.decode('utf-8'))
 		if m is None or m.lastindex != 1:
@@ -76,7 +67,16 @@ for item in rsstree.getiterator('item'):
 			                       "--mp3encode=lame %w %m", mp3fspath])
 
 		mp3len = str(os.path.getsize(mp3fspath))
-		etree.SubElement(item, 'enclosure', {'url': urllib.parse.urljoin(mp3urlpath, mp3url), 'type':'audio/mpeg', 'length':mp3len})
+		etree.SubElement(item, 'enclosure', {'url': urllib.parse.urljoin(mp3urlpath, mp3base), 'type':'audio/mpeg', 'length':mp3len})
+
+		m = re.search(r'<div class="bbtext">(([^<]|</?p|</?span)*)</div>', cont, re.S)
+		if m is None or m.lastindex != 1:
+			raise ValueError('Nenalezen hlavni obsah.')
+
+		cont = m.group(1)
+		celem = etree.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
+		celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, cont)
+
 	except ValueError as e:
 		print("Chyba: {}\nV zapisku: {}".format(e, item.find('title').text))
 		print("Datum publikace: {}\n".format(item.find('pubDate').text))
