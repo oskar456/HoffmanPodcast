@@ -7,25 +7,22 @@ import httplib2
 import urllib.parse
 import io
 import re
-try:
-	from lxml import etree
-except ImportError:
-	import xml.etree.ElementTree as etree
+from lxml import etree
+from lxml import html
 import translitfilter
 import subprocess
+
+from local import outfile, mp3path, mp3urlpath
 if sys.stdout.encoding != 'UTF-8':
 	sys.stdout = translitfilter.TranslitFilter(sys.stdout)
 
 
 rssaddr = 'http://www.denik.cz/rss/hoffmanuv_denik.html'
-current_path = os.path.dirname(sys.argv[0])
-outfile = os.path.join(current_path, 'hoffmanpodcast.xml')
-mp3path = os.path.join(current_path, 'audio')
-mp3urlpath = "audio/"
 
 #httplib2.debuglevel=4
 h = httplib2.Http('.cache')
-response, content = h.request(rssaddr)
+headers = {'Connection': 'close'}
+response, content = h.request(rssaddr, headers=headers)
 assert response.status == 200
 #Make sure no double-XML document is returned (Server is buggy)
 first, end, last = content.partition(b'</rss>')
@@ -36,27 +33,22 @@ rsstree.find('channel/title').text = 'Hoffmanův Podcast'
 for item in rsstree.getiterator('item'):
 	try:
 		link = item.find('link')
-		response, content = h.request(link.text)
-		if response.status != 200:
-			raise ValueError('Nemohu najit odkazovany clanek, status {}.'.format(response.status))
-		cont = content.decode('utf-8').partition('<p class="clanek-perex">')[2].partition('<p class="clanek-autor">')[0]
+		print("getting {}".format(link.text))
+		conttree = html.parse(link.text)
 
-		m = re.search('<a href="(/galerie/[^"]*\.html\?mm=[0-9]+)">', content.decode('utf-8'))
-		if m is None or m.lastindex != 1:
+		playlisturl = conttree.find('//div[@class="box-img"]/a').get('href')
+		if playlisturl is None:
 			raise ValueError('Nenalezen odkaz na galerii v HTML strance')
-		playlisturl = m.group(1)
-		response, content = h.request(urllib.parse.urljoin(link.text, playlisturl))
-		if response.status != 200:
-			raise ValueError('Nemohu nacist stranku s galerii, status {}.'.format(response.status))
-		m = re.search('url: "(http:[^"]+mp3)"', content.decode('utf-8'))
-		if m is None or m.lastindex != 1:
+		print("getting {}".format(urllib.parse.urljoin(link.text, playlisturl)))
+		galtree = html.parse(urllib.parse.urljoin(link.text, playlisturl))
+		mp3url = galtree.find('//audio').get('src')
+		if mp3url is None:
 			raise ValueError('Nenalezen MP3 soubor v galerii.')
-		mp3url = m.group(1).translate({ord("\\"):None})
 		mp3base = os.path.basename(urllib.parse.urlsplit(mp3url).path)
 		mp3fspath = os.path.join(mp3path, mp3base)
 		
 		if not os.path.exists(mp3fspath):
-			response, content = h.request(mp3url)
+			response, content = h.request(mp3url, headers=headers)
 			if response.status != 200:
 				raise ValueError('Nelze ziskat MP3 soubor {}, status {}'.format(mp3url, response.status))
 			if response['content-type'] != 'audio/mpeg':
@@ -69,15 +61,14 @@ for item in rsstree.getiterator('item'):
 		mp3len = str(os.path.getsize(mp3fspath))
 		etree.SubElement(item, 'enclosure', {'url': urllib.parse.urljoin(mp3urlpath, mp3base), 'type':'audio/mpeg', 'length':mp3len})
 
-		m = re.search(r'<div class="bbtext">(([^<]|</?p|</?span)*)</div>', cont, re.S)
-		if m is None or m.lastindex != 1:
+		fulltext = conttree.findall('//div[@class="bbtext"]/p')
+		if fulltext is None:
 			raise ValueError('Nenalezen hlavni obsah.')
 
-		cont = m.group(1)
 		celem = etree.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
-		celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, cont)
+		celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, "\n".join(etree.tounicode(text) for text in fulltext))
 
-	except ValueError as e:
+	except (ValueError, OSError) as e:
 		print("Chyba: {}\nV zapisku: {}".format(e, item.find('title').text))
 		print("Datum publikace: {}\n".format(item.find('pubDate').text))
 
