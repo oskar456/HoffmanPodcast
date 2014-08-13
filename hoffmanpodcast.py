@@ -33,13 +33,21 @@ rsstree.find('channel/title').text = 'Hoffmanův Podcast'
 for item in rsstree.getiterator('item'):
 	try:
 		link = item.find('link')
-		print("getting {}".format(link.text))
+		#print("getting {}".format(link.text))
 		conttree = html.parse(link.text)
 
-		playlisturl = conttree.find('//div[@class="box-img"]/a').get('href')
-		if playlisturl is None:
+		fulltext = conttree.findall('//div[@class="bbtext"]/p')
+		if fulltext is not None:
+			celem = etree.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
+			celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, "\n".join(etree.tounicode(text) for text in fulltext))
+		else:
+			print("Nenalezen hlavni obsah v zapisku: {}".format(item.find('title').text))
+			print("Datum publikace: {}\n".format(item.find('pubDate').text))
+
+		playlistlink = conttree.find('//div[@class="box-img"]/a')
+		if playlistlink is None:
 			raise ValueError('Nenalezen odkaz na galerii v HTML strance')
-		print("getting {}".format(urllib.parse.urljoin(link.text, playlisturl)))
+		playlisturl = playlistlink.get('href')
 		galtree = html.parse(urllib.parse.urljoin(link.text, playlisturl))
 		mp3url = galtree.find('//audio').get('src')
 		if mp3url is None:
@@ -61,12 +69,6 @@ for item in rsstree.getiterator('item'):
 		mp3len = str(os.path.getsize(mp3fspath))
 		etree.SubElement(item, 'enclosure', {'url': urllib.parse.urljoin(mp3urlpath, mp3base), 'type':'audio/mpeg', 'length':mp3len})
 
-		fulltext = conttree.findall('//div[@class="bbtext"]/p')
-		if fulltext is None:
-			raise ValueError('Nenalezen hlavni obsah.')
-
-		celem = etree.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
-		celem.text = '<p>{}</p>\n{}'.format(item.find('description').text, "\n".join(etree.tounicode(text) for text in fulltext))
 
 	except (ValueError, OSError) as e:
 		print("Chyba: {}\nV zapisku: {}".format(e, item.find('title').text))
