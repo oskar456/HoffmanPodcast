@@ -40,7 +40,8 @@ class TranslitFilter(StreamTee):
         for c in s1:
             # add all non-combining characters
             if not unicodedata.combining(c):
-                r.append(c)
+                #replace by ? if not in range(128)
+                r.append(c if ord(c)<128 else '?')
         return "".join(r)
 
 
@@ -50,4 +51,4 @@ if __name__ == '__main__':
 	print("Current STDOUT encoding: {}".format(sys.stdout.encoding))
 	if sys.stdout.encoding != 'UTF-8':
 		sys.stdout = TranslitFilter(sys.stdout)
-	print("ě+ščřžýáíé")
+	print("ě+ščřžýáí\xa0é")
